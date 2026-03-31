@@ -15,6 +15,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final taskCountDone = tasks.where((task) => task.done).length;
     return MaterialApp(
 
       home: Scaffold(
@@ -32,11 +33,18 @@ class MyApp extends StatelessWidget {
 
               children: [
 
-                Text("Masz dziś ${tasks.length} zadan"),
+                Text("Masz dziś ${tasks.length} zadań"),
+
+                SizedBox(height: 16),
+                Text("Wykonano ${taskCountDone} zadanie",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,),
+                ),
+
                 SizedBox(height: 16),
                 Text("Dzisiejsze zadania:",
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
+
 
                 Expanded(
                     child:
