@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tasks_repository.dart';
+import '/services/task_api_service.dart';
 
 void main() {
   runApp(MyApp());
@@ -35,6 +36,7 @@ class _MainScreenState extends State<MainScreen> {
       if (selectedFilter == "do zrobienia") return !task.done;
       return true;
     }).toList();
+
     return Scaffold(
 
       appBar: AppBar(
@@ -100,51 +102,8 @@ class _MainScreenState extends State<MainScreen> {
               ),
 
               Expanded(
-                  child:
-                  ListView.builder(
-
-                      itemCount: tasks.length,
-                      itemBuilder: (context, index) {
-
-                        final task = tasks[index];
-                        return Dismissible(
-                            key: ValueKey(task.title),
-                            direction: DismissDirection.endToStart,
-                            onDismissed: (direction) {setState(() {
-                              TasksRepository.tasks.remove(task);
-                              });
-                            },
-                            child: TaskCard(
-                                title: task.title,
-                                subtitle: task.deadline,
-                                icon: task.done ? Icons.check_circle : Icons.radio_button_checked,
-                                priority: task.priority,
-                                done: task.done,
-                                onChange: (value) {
-                                  setState(() {
-                                    task.done = value!;
-                                  });
-                                },
-                                onTap: () async {
-                                  final Task? updatedTask = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => EditTaskScreen(task: task)
-                                    )
-                                  );
-
-                                  if (updatedTask != null) {
-                                    setState(() {
-                                      final index = TasksRepository.tasks.indexOf(task);
-                                      TasksRepository.tasks[index] = updatedTask;
-                                    });
-                                  }
-                                },
-                            )
-                        );
-                      }
-                  )
-              )
+                  child: TaskListScreen()
+              ),
 
             ],
 
@@ -417,6 +376,55 @@ class FilterBar extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+class TaskListScreen extends StatefulWidget {
+  const TaskListScreen({super.key});
+
+  @override
+  State<TaskListScreen> createState() => _TaskListScreen();
+}
+
+class _TaskListScreen extends State<TaskListScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Task>>(
+      future: TaskApiService.fetchTasks(),
+      builder: (context, snapshot) {
+        final tasks = snapshot.data!;
+        return ListView(
+          children: tasks.map((task) {
+            return TaskCard(
+              title: task.title,
+              subtitle: task.deadline,
+              icon: task.done ? Icons.check_circle : Icons.radio_button_checked,
+              priority: task.priority,
+              done: task.done,
+              onChange: (value) {
+                  setState(() {
+                  task.done = value!;
+                });
+            },
+            onTap: () async {
+            final Task? updatedTask = await Navigator.push(
+            context,
+            MaterialPageRoute(
+            builder: (context) => EditTaskScreen(task: task)
+            )
+            );
+
+            if (updatedTask != null) {
+                setState(() {
+                final index = TasksRepository.tasks.indexOf(task);
+                TasksRepository.tasks[index] = updatedTask;
+                });
+              }
+            },
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }
