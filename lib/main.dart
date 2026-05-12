@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'tasks_repository.dart';
 import '/services/task_api_service.dart';
+import '/services/task_local_database.dart';
+import '/services/task_sync_service.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await Hive.openBox("tasks");
   runApp(MyApp());
 }
 
@@ -29,20 +35,21 @@ class _MainScreenState extends State<MainScreen> {
   String selectedFilter = "wszystkie";
   @override
   Widget build(BuildContext context){
-    var taskCountDone = TasksRepository.tasks.where((task) => task.done).length;
+    //var taskCountDone = tasks.where((task) => task.done).length;
 
-    final tasks = TasksRepository.tasks.where((task) {
-      if (selectedFilter == "zrobione") return task.done;
-      if (selectedFilter == "do zrobienia") return !task.done;
-      return true;
-    }).toList();
+    // final tasks = tasks.where((task) {
+    //   if (selectedFilter == "zrobione") return task.done;
+    //   if (selectedFilter == "do zrobienia") return !task.done;
+    //   return true;
+    // }).toList();
 
     return Scaffold(
 
       appBar: AppBar(
         title: Text("KrakFlow"),
         actions: [
-          IconButton(onPressed: TasksRepository.tasks.isEmpty ? null : (){
+          //tasks.isEmpty ? null : ()
+          IconButton(onPressed: (){
             showDialog(context: context, builder: (context){
               return AlertDialog(
                 title: Text("Potwierdzenie"),
@@ -51,7 +58,8 @@ class _MainScreenState extends State<MainScreen> {
                   TextButton(onPressed: () => Navigator.pop(context), child: Text("Anuluj")),
                   TextButton(onPressed: () {
                     setState(() {
-                      TasksRepository.tasks.clear();
+                      return;
+                      //tasks.clear();
                     });
 
                     Navigator.pop(context);
@@ -68,7 +76,8 @@ class _MainScreenState extends State<MainScreen> {
               );
             });
           }, icon: Icon(Icons.delete,
-          color: TasksRepository.tasks.isEmpty ? Colors.grey : Colors.red))
+          color: Colors.red))
+      //tasks.isEmpty ? Colors.grey : Colors.red))
         ],
       ),
 
@@ -80,7 +89,7 @@ class _MainScreenState extends State<MainScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
 
             children: [
-              Text("Masz dziś ${TasksRepository.tasks.length} zadań"),
+              Text("Masz dziś 5 zadań"),
               SizedBox(height: 16),
             FilterBar(
               selectedFilter: selectedFilter,
@@ -92,7 +101,7 @@ class _MainScreenState extends State<MainScreen> {
             ),
 
               SizedBox(height: 16),
-              Text("Wykonano $taskCountDone zadanie",
+              Text("Wykonano 5 zadanie",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold,),
               ),
 
@@ -131,7 +140,8 @@ class _MainScreenState extends State<MainScreen> {
 
           if(newTask != null){
             setState(() {
-              TasksRepository.tasks.add(newTask);
+              TaskLocalDatabase.addTask(newTask);
+              //_TaskListScreen.loadTask();
             });
           }
         },
@@ -239,6 +249,7 @@ class AddTaskScreen extends StatelessWidget {
               child: ElevatedButton(
                   onPressed: () {
                     final newTask = Task(
+                      id: DateTime.now().millisecondsSinceEpoch,
                       title: titleController.text,
                       deadline: deadLineController.text,
                       done: false,
@@ -308,6 +319,7 @@ class EditTaskScreen extends StatelessWidget {
                 child: ElevatedButton(
                     onPressed: () {
                       final updatedTask = Task(
+                        id: task.id,
                         title: titleController.text,
                         deadline: deadLineController.text,
                         done: task.done,
@@ -387,12 +399,37 @@ class TaskListScreen extends StatefulWidget {
 }
 
 class _TaskListScreen extends State<TaskListScreen> {
+  late Future<List<Task>> tasksFuture;
+
+  Future<List<Task>> loadTask() async {
+    await TaskSyncService.loadInitialDataIfNeeded();
+    return TaskLocalDatabase.getTasks();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    tasksFuture = loadTask();
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Task>>(
-      future: TaskApiService.fetchTasks(),
+      future: tasksFuture,
       builder: (context, snapshot) {
-        final tasks = snapshot.data!;
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if(snapshot.hasError){
+          return Center(
+            child: Text("Błąd ${snapshot.error}"),
+          );
+        }
+
+        final tasks = snapshot.data ?? [];
         return ListView(
           children: tasks.map((task) {
             return TaskCard(
@@ -415,9 +452,9 @@ class _TaskListScreen extends State<TaskListScreen> {
             );
 
             if (updatedTask != null) {
+                await TaskLocalDatabase.updateTask(updatedTask);
                 setState(() {
-                final index = TasksRepository.tasks.indexOf(task);
-                TasksRepository.tasks[index] = updatedTask;
+                tasksFuture = loadTask();
                 });
               }
             },
