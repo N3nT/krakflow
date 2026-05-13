@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:krakflow/tasks_repository.dart';
 import 'dart:math';
+import '../models/task.dart';
+
 final random = Random();
 final priorities = ["niski", "średni", "wysoki"];
 
@@ -16,7 +17,7 @@ class TaskApiService {
       final List todos = data["todos"];
       return todos.map((todo) {
         return Task(
-          id: todo["id"],
+          id: todo["id"].toString(),
           title: todo["todo"],
           deadline: "brak",
           done: todo["completed"],

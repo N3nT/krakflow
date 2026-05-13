@@ -1,5 +1,5 @@
 import 'package:hive_ce/hive.dart';
-import '../tasks_repository.dart';
+import '../models/task.dart';
 
 class TaskLocalDatabase {
   static Box get _box => Hive.box("tasks");
@@ -26,7 +26,7 @@ class TaskLocalDatabase {
     await _box.put(task.id, task.toMap());
   }
 
-  static Future<void> deleteTask(int id) async {
+  static Future<void> deleteTask(String id) async {
     await _box.delete(id);
   }
 
