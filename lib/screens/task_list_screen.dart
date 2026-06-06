@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/task.dart';
 import '../services/task_local_database.dart';
+import '../services/notification_service.dart';
 
 import '../widgets/task_card.dart';
 import 'edit_task_screen.dart';
@@ -112,6 +113,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   await TaskLocalDatabase.updateTask(
                     task,
                   );
+
+                  if (!task.done && task.done) {
+                    await NotificationService.showTaskDoneNotification(task.title);
+                  }
                   await reload();
                 },
 
